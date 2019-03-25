@@ -33,7 +33,11 @@
         var marker = new google.maps.Marker({
           position: myLatLng,
           map: map,
+          draggable: true,
           title: 'Hello World!'
+        });
+        marker.addListener('dragend', (ev) => {
+          console.log(ev.latLng, ev);
         });
       }
     </script>
