@@ -20,24 +20,34 @@
   </head>
   <body>
     <div id="map"></div>
+    <button onClick="handleButton()">Show Data</button>
     <script>
 
-      function initMap() {
-        var myLatLng = {lat: -25.363, lng: 131.044};
+      let data = {};
 
-        var map = new google.maps.Map(document.getElementById('map'), {
+      function handleButton() {
+        console.log(data);
+        alert(JSON.stringify(data, 2));
+      }
+
+      function initMap() {
+        let hashLatLng = window.location.search;
+        let myLatLng = hashLatLng ? hashLatLng : {lat: -25.363, lng: 131.044};
+
+        let map = new google.maps.Map(document.getElementById('map'), {
           zoom: 4,
           center: myLatLng
         });
 
-        var marker = new google.maps.Marker({
+        let marker = new google.maps.Marker({
           position: myLatLng,
           map: map,
           draggable: true,
           title: 'Hello World!'
         });
         marker.addListener('dragend', (ev) => {
-          console.log(ev.latLng, ev);
+          data.lat = ev.latLng.lat();
+          data.lng = ev.latLng.lng();
         });
       }
     </script>
