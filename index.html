@@ -23,36 +23,26 @@
     <button onClick="handleButton()">Show Data</button>
     <script>
 
-      let data = {};
+      var data = {};
+
+      var API_KEY = "AIzaSyCo9ihJAmtx0BuwgzbIwLKRJZcvGEw6djg";
+      var GEOCODE_API = "https://maps.googleapis.com/maps/api/geocode/json?key="+API_KEY+"&address=";
 
       function handleButton() {
         console.log(data);
         alert(JSON.stringify(data, 2));
       }
 
-      function initMap() {
-        let myLatLng = null;
-
-        if(window.location.search) {
-          let s = window.location.search.substr(1).split(',');
-          console.log(s);
-          myLatLng = {
-            lat: s[0],
-            lng: s[1]
-          };
-          data.lat = s[0];
-          data.lng = s[1];
-        } else {
-          myLatLng = {lat: -25.363, lng: 131.044};
-        }
-
+      function showMap(loc) {
         let map = new google.maps.Map(document.getElementById('map'), {
-          zoom: 4,
-          center: myLatLng
+          zoom: 10,
+          center: loc
         });
 
+        data = loc;
+
         let marker = new google.maps.Marker({
-          position: myLatLng,
+          position: loc,
           map: map,
           draggable: true,
           title: 'Hello World!'
@@ -61,6 +51,24 @@
           data.lat = ev.latLng.lat();
           data.lng = ev.latLng.lng();
         });
+      }
+
+      function initMap() {
+        if(window.location.search) {
+          let address = window.location.search.substr(1);
+          fetch(GEOCODE_API+address)
+            .then(function(resp) {
+              return resp.json();
+            })
+            .then(function(json) {
+              console.log(json);
+              let loc = json.results[0].geometry.location;
+              console.log(loc);
+              showMap(loc);
+            });
+        } else {
+          alert("no search input");
+        }
       }
     </script>
     <script async defer
