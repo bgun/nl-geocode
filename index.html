@@ -32,14 +32,18 @@
 
       function initMap() {
         let myLatLng = null;
+
         if(window.location.search) {
           let s = window.location.search.substr(1).split(',');
+          console.log(s);
           myLatLng = {
             lat: s[0],
             lng: s[1]
           };
+          data.lat = s[0];
+          data.lng = s[1];
         } else {
-          myLatLng = hashLatLng ? hashLatLng : {lat: -25.363, lng: 131.044};
+          myLatLng = {lat: -25.363, lng: 131.044};
         }
 
         let map = new google.maps.Map(document.getElementById('map'), {
