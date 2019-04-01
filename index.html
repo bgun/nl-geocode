@@ -8,9 +8,34 @@
       /* Always set the map height explicitly to define the size of the div
        * element that contains the map. */
       #map {
-        height: 600px;
+        height: 100%; 
+        position: fixed;
       }
-      /* Optional: Makes the sample page fill the window. */
+
+      #search {
+        border: none;
+        box-sizing: border-box;
+        box-shadow: 0 4px 4px rgba(0,0,0,0.2);
+        font-size: 16px;
+        line-height: 30px;
+        padding: 7px;
+        position: fixed !important;
+          top: 3% !important;
+          left: 3% !important;
+        width: 94%;
+      }
+      #button {
+        background: #0F0;
+        border: none;
+        border-radius: 5px;
+        box-shadow: 0 4px 4px rgba(0,0,0,0.2);
+        font-size: 16px;
+        height: 40px;
+        position: fixed;
+        left: 12px;
+        bottom: 24px;
+        width: 70%;
+      }
       html, body {
         height: 100%;
         margin: 0;
@@ -20,7 +45,8 @@
   </head>
   <body>
     <div id="map"></div>
-    <button onClick="handleButton()" style="width: 100%; height: 50px; font-size: 16px; background: #0F0">Show Data</button>
+    <input id="search" class="controls" type="text" placeholder="Search Box" />
+    <button id="button" onClick="handleButton()">Show Data</button>
     <script>
 
       var data = {};
@@ -28,19 +54,51 @@
       var API_KEY = "AIzaSyCo9ihJAmtx0BuwgzbIwLKRJZcvGEw6djg";
       var GEOCODE_API = "https://maps.googleapis.com/maps/api/geocode/json?key="+API_KEY+"&address=";
 
-      function handleButton() {
-        console.log(data);
-        alert(JSON.stringify(data, 2));
+      function handleSendResponse(resp) {
+        // send response back here
+        alert(resp);
       }
 
-      function showMap(loc) {
+      function handleButton() {
+        if (data.address) {
+          handleSendResponse(JSON.stringify(data));
+        } else {
+          fetch(GEOCODE_API+data.lat+","+data.lng)
+            .then(function(resp) {
+              return resp.json();
+            })
+            .then(function(json) {
+              data.address = json.results[0].formatted_address;
+              handleSendResponse(JSON.stringify(data));
+            });
+        }
+      }
+
+      function showMap(place) {
+        let loc = place.geometry.location;
         let map = new google.maps.Map(document.getElementById('map'), {
           zoom: 10,
-          center: loc
+          center: loc,
+          disableDefaultUI: true,
+          zoomControl: true
         });
 
-        data = loc;
+        data = {
+          lat: loc.lat,
+          lng: loc.lng,
+          address: place.formatted_address
+        };
 
+        // Create the search box and link it to the UI element.
+        var input = document.getElementById('search');
+        var searchBox = new google.maps.places.SearchBox(input);
+        map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+
+        // Bias the SearchBox results towards current map's viewport.
+        map.addListener('bounds_changed', function() {
+          searchBox.setBounds(map.getBounds());
+        });
+        
         let marker = new google.maps.Marker({
           position: loc,
           map: map,
@@ -50,6 +108,41 @@
         marker.addListener('dragend', (ev) => {
           data.lat = ev.latLng.lat();
           data.lng = ev.latLng.lng();
+          data.address = null;
+        });
+
+        // Listen for the event fired when the user selects a prediction and retrieve
+        // more details for that place.
+        searchBox.addListener('places_changed', function() {
+          var places = searchBox.getPlaces();
+
+          if (places.length == 0) {
+            return;
+          }
+
+          // For each place, get the icon, name and location.
+          var bounds = new google.maps.LatLngBounds();
+          places.reverse().forEach(function(place) {
+            if (!place.geometry) {
+              console.warn("Returned place contains no geometry");
+              return;
+            }
+
+            // Create a marker for each place.
+            let l = place.geometry.location;
+            marker.setPosition(l);
+            data.lat = l.lat();
+            data.lng = l.lng();
+            data.address = place.formatted_address;
+
+            if (place.geometry.viewport) {
+              // Only geocodes have viewport.
+              bounds.union(place.geometry.viewport);
+            } else {
+              bounds.extend(place.geometry.location);
+            }
+          });
+          map.fitBounds(bounds);
         });
       }
 
@@ -61,9 +154,7 @@
               return resp.json();
             })
             .then(function(json) {
-              console.log(json);
-              let loc = json.results[0].geometry.location;
-              console.log(loc);
+              let loc = json.results[0];
               showMap(loc);
             });
         } else {
@@ -72,7 +163,7 @@
       }
     </script>
     <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCo9ihJAmtx0BuwgzbIwLKRJZcvGEw6djg&callback=initMap">
+    src="https://maps.googleapis.com/maps/api/js?libraries=places&key=AIzaSyCo9ihJAmtx0BuwgzbIwLKRJZcvGEw6djg&callback=initMap">
     </script>
   </body>
 </html>
