@@ -158,7 +158,15 @@
               showMap(loc);
             });
         } else {
-          alert("no search input");
+          // load default location in NYC
+          showMap({
+            geometry: {
+              location: {
+                lat: 40.74,
+                lng: -74
+              }
+            }
+          });
         }
       }
     </script>
