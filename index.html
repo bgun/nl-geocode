@@ -25,10 +25,12 @@
         width: 94%;
       }
       #button {
-        background: #0F0;
-        border: none;
+        background: #FFF;
+        border: 1px solid #04A;
         border-radius: 5px;
         box-shadow: 0 4px 4px rgba(0,0,0,0.2);
+        box-sizing: border-box;
+        color: #04A;
         font-size: 16px;
         height: 40px;
         position: fixed;
@@ -46,32 +48,84 @@
   <body>
     <div id="map"></div>
     <input id="search" class="controls" type="text" placeholder="Search Box" />
-    <button id="button" onClick="handleButton()">Show Data</button>
+    <button id="button" onClick="handleButton()">Send Address</button>
     <script>
 
-      var data = {};
+      var response_data = {};
+      var params = {};
 
       var API_KEY = "AIzaSyCo9ihJAmtx0BuwgzbIwLKRJZcvGEw6djg";
       var GEOCODE_API = "https://maps.googleapis.com/maps/api/geocode/json?key="+API_KEY+"&address=";
 
-      function handleSendResponse(resp) {
-        // send response back here
-        alert(resp);
+      function jsonToQueryString(json) {
+        return '?' + 
+          Object.keys(json).map(function(key) {
+              return encodeURIComponent(key) + '=' +
+                  encodeURIComponent(json[key]);
+          }).join('&');
+      }
+
+      // get JSON object from the querystring
+      function parseQueryString() {
+        var pairs = location.search.slice(1).split('&');
+        var result = {};
+        pairs.forEach(function(pair) {
+          pair = pair.split('=');
+          result[pair[0]] = decodeURIComponent(pair[1] || '');
+        });
+        return JSON.parse(JSON.stringify(result));
+      }
+
+      // send response back here
+      function handleSendResponse() {
+        fetch("https://api.chatfuel.com/bots/"+params.chatfuel_token+"/users/"+params.messenger_user_id+"/send?chatfuel_token="+params.chatfuel_token+"&chatfuel_block_id="+params.chatfuel_block_id, {
+          method: "post",
+          body: JSON.stringify(response_data)
+        }).then(function(response) {
+          console.log(response);
+        });
       }
 
       function handleButton() {
-        if (data.address) {
-          handleSendResponse(JSON.stringify(data));
+        if (response_data.location_country) {
+          handleSendResponse(JSON.stringify(response_data));
         } else {
-          fetch(GEOCODE_API+data.lat+","+data.lng)
+          fetch(GEOCODE_API+response_data.lat+","+response_data.lng)
             .then(function(resp) {
               return resp.json();
             })
             .then(function(json) {
-              data.address = json.results[0].formatted_address;
-              handleSendResponse(JSON.stringify(data));
+              setPlaceData(json.results[0]);
+              handleSendResponse(JSON.stringify(response_data));
             });
         }
+      }
+
+      function getAddressComponent(place, type) {
+        let r = "";
+        if(place && place.address_components) {
+          place.address_components.forEach(function(c) {
+            if (c.types.includes(type)) {
+              r = c.long_name;
+            }
+          });
+        }
+        return r;
+      }
+
+      function setPlaceData(place) {
+        response_data = {
+          lat: place.geometry.location.lat,
+          lng: place.geometry.location.lng,
+          location_address: [
+            getAddressComponent(place, "street_number"),
+            getAddressComponent(place, "route"),
+          ].join(' '),
+          location_city:    getAddressComponent(place, "locality"),
+          location_state:   getAddressComponent(place, "administrative_area_level_1"),
+          location_country: getAddressComponent(place, "country"),
+          location_zip:     getAddressComponent(place, "postal_code")
+        };
       }
 
       function showMap(place) {
@@ -83,11 +137,7 @@
           zoomControl: true
         });
 
-        data = {
-          lat: loc.lat,
-          lng: loc.lng,
-          address: place.formatted_address
-        };
+        setPlaceData(place);
 
         // Create the search box and link it to the UI element.
         var input = document.getElementById('search');
@@ -106,9 +156,9 @@
           title: 'Hello World!'
         });
         marker.addListener('dragend', (ev) => {
-          data.lat = ev.latLng.lat();
-          data.lng = ev.latLng.lng();
-          data.address = null;
+          response_data.lat = ev.latLng.lat();
+          response_data.lng = ev.latLng.lng();
+          response_data.location_country = null;
         });
 
         // Listen for the event fired when the user selects a prediction and retrieve
@@ -131,9 +181,8 @@
             // Create a marker for each place.
             let l = place.geometry.location;
             marker.setPosition(l);
-            data.lat = l.lat();
-            data.lng = l.lng();
-            data.address = place.formatted_address;
+            response_data.lat = l.lat();
+            response_data.lng = l.lng();
 
             if (place.geometry.viewport) {
               // Only geocodes have viewport.
@@ -148,14 +197,13 @@
 
       function initMap() {
         if(window.location.search) {
-          let address = window.location.search.substr(1);
-          fetch(GEOCODE_API+address)
+          params = parseQueryString();
+          fetch(GEOCODE_API+params.delivery_location)
             .then(function(resp) {
               return resp.json();
             })
             .then(function(json) {
-              let loc = json.results[0];
-              showMap(loc);
+              showMap(json.results[0]);
             });
         } else {
           // load default location in NYC
